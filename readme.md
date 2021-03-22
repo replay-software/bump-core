@@ -1,0 +1,1 @@
+This tool builds changelog files compatible with Sparkle

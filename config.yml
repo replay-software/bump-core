@@ -1,0 +1,2 @@
+app_name: AppExample # Should match the .zip file found in ./release/ (sans extension)
+s3_bucket_name: app-example-distribution # The subdomain used before .s3.amazonaws.com
