@@ -62,6 +62,10 @@ type midasConfig struct {
 }
 
 func main() {
+	// Unwrap config
+	var c midasConfig
+	c.getConfiguration()
+
 	fmt.Println("✨ Running Bump...")
 
 	// Read in frontmatter and markdown from `releaseFile`
@@ -76,7 +80,9 @@ func main() {
 		panic(err)
 	}
 
-	zip, err := os.Stat(findFileWithExtension(".zip"))
+	appFilenameSegments := strings.Split(c.AppFilename, ".")
+	lastSegmentWithExtension := appFilenameSegments[len(appFilenameSegments)-1]
+	appFile, err := os.Stat(findFileWithExtension(fmt.Sprintf(".%s", lastSegmentWithExtension)))
 
 	if err != nil {
 		fmt.Println("A problem occurred while reading your app archive")
@@ -87,17 +93,14 @@ func main() {
 	sparklePrivateKey := os.Getenv("SPARKLE_PRIVATE_KEY")
 
 	if sparklePrivateKey != "" {
-		fmt.Println("Found Sparkle Priate Key at SPARKLE_PRIVATE_KEY")
-		newSig := signFileWithKey(sparklePrivateKey)
+		fmt.Println("Found Sparkle Private Key at SPARKLE_PRIVATE_KEY")
+		newSig := signFileWithKey(sparklePrivateKey, c.AppFilename)
 		signature = &newSig
 		fmt.Println("Signed file with private key")
 	}
 
 	// Forms the s3 bucket domain
-	var urlToVersionedFile string
-	var c midasConfig
-	c.getConfiguration()
-	urlToVersionedFile = fmt.Sprintf("https://%s.s3.amazonaws.com/", c.S3BucketName)
+	urlToVersionedFile := fmt.Sprintf("https://%s.s3.amazonaws.com/", c.S3BucketName)
 
 	// Assigns a minimum system version if there is one
 	var minimumSystemVersion *string
@@ -107,8 +110,7 @@ func main() {
 	}
 
 	// Turns periods into hyphens
-	var urlSafeFilename string
-	urlSafeFilename = strings.Replace(fmt.Sprintf("%s", f["version"]), ".", "-", -1)
+	urlSafeFilename := strings.Replace(fmt.Sprintf("%s", f["version"]), ".", "-", -1)
 
 	// Build our new release
 	newItem := item{
@@ -116,7 +118,7 @@ func main() {
 			URL:       fmt.Sprintf("%s%s/%s", urlToVersionedFile, urlSafeFilename, c.AppFilename),
 			Version:   fmt.Sprintf("%s", f["version"]),
 			Type:      "application/octet-stream",
-			Length:    zip.Size(),
+			Length:    appFile.Size(),
 			Signature: signature,
 		},
 		PublishDate:          time.Now().Format("Mon, 01 Jan 2006 15:04:05 +0000"),
@@ -155,6 +157,7 @@ func main() {
 }
 
 func getExistingChangelogItems() []item {
+	print("Inspecting Changelog...")
 	xmlFile, err := os.Open(findFileWithExtension(".xml"))
 	if err != nil {
 		fmt.Println(err)
@@ -166,9 +169,7 @@ func getExistingChangelogItems() []item {
 	var rss rss
 	xml.Unmarshal(byteValue, &rss)
 
-	var items []item
-
-	items = rss.Channel.Items
+	items := rss.Channel.Items
 
 	return items
 }
@@ -199,6 +200,7 @@ func findFileWithExtension(ext string) string {
 	var matchingFilePath string
 	files, err := ioutil.ReadDir(releaseDirectory)
 	if err != nil {
+		println("Reading release directory")
 		fmt.Println(err)
 	}
 
@@ -206,6 +208,7 @@ func findFileWithExtension(ext string) string {
 		extension := filepath.Ext(file.Name())
 		if extension == ext {
 			matchingFilePath = fmt.Sprintf("%s/%s", releaseDirectory, file.Name())
+			println(matchingFilePath)
 		}
 	}
 

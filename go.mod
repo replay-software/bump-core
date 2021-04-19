@@ -1,4 +1,4 @@
-module sleeveBuilder
+module bump
 
 go 1.15
 
