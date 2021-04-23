@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io/ioutil"
@@ -25,10 +26,10 @@ const (
 )
 
 type rss struct {
-	Channel channel `xml:"channel"`
-	Version float32 `xml:"version,attr"`
-	Schema  string  `xml:"xmlns:sparkle,attr"`
-	Dc      string  `xml:"xmlns:dc,attr"`
+	Channel channel `xml:"channel" json:"Changelog"`
+	Version float32 `xml:"version,attr" json:"-"`
+	Schema  string  `xml:"xmlns:sparkle,attr" json:"-"`
+	Dc      string  `xml:"xmlns:dc,attr" json:"-"`
 }
 
 type channel struct {
@@ -43,15 +44,16 @@ type item struct {
 }
 
 type enclosure struct {
-	URL       string  `xml:"url,attr"`
-	Version   string  `xml:"sparkle version,attr"`
-	Length    int64   `xml:"length,attr"`
-	Type      string  `xml:"type,attr"`
-	Signature *string `xml:"sparkle edSignature,attr"`
+	URL              string  `xml:"url,attr"`
+	Version          string  `xml:"sparkle version,attr"`
+	MarketingVersion *string `xml:"sparkle shortVersionString,attr,omitempty"`
+	Length           int64   `xml:"length,attr"`
+	Type             string  `xml:"type,attr"`
+	Signature        *string `xml:"sparkle edSignature,attr"`
 }
 
 type description struct {
-	XMLName xml.Name `xml:"description"`
+	XMLName xml.Name `xml:"description" json:"-"`
 	Text    string   `xml:",cdata"`
 }
 
@@ -96,7 +98,9 @@ func main() {
 		fmt.Println("Found Sparkle Private Key at SPARKLE_PRIVATE_KEY")
 		newSig := signFileWithKey(sparklePrivateKey, c.AppFilename)
 		signature = &newSig
-		fmt.Println("Signed file with private key")
+		fmt.Println("🔐  Signed file with private key")
+	} else {
+		fmt.Println("⏭  No Sparkle private key found (SPARKLE_PRIVATE_KEY). Skip signing...")
 	}
 
 	// Forms the s3 bucket domain
@@ -109,17 +113,24 @@ func main() {
 		minimumSystemVersion = &v
 	}
 
+	var marketingVersion *string
+	if f["marketing_version"] != nil {
+		v := fmt.Sprintf("%s", f["marketing_version"])
+		marketingVersion = &v
+	}
+
 	// Turns periods into hyphens
 	urlSafeFilename := strings.Replace(fmt.Sprintf("%s", f["version"]), ".", "-", -1)
 
 	// Build our new release
 	newItem := item{
 		Enclosure: enclosure{
-			URL:       fmt.Sprintf("%s%s/%s", urlToVersionedFile, urlSafeFilename, c.AppFilename),
-			Version:   fmt.Sprintf("%s", f["version"]),
-			Type:      "application/octet-stream",
-			Length:    appFile.Size(),
-			Signature: signature,
+			URL:              fmt.Sprintf("%s%s/%s", urlToVersionedFile, urlSafeFilename, c.AppFilename),
+			Version:          fmt.Sprintf("%s", f["version"]),
+			MarketingVersion: marketingVersion,
+			Type:             "application/octet-stream",
+			Length:           appFile.Size(),
+			Signature:        signature,
 		},
 		PublishDate:          time.Now().Format("Mon, 01 Jan 2006 15:04:05 +0000"),
 		Description:          &description{Text: string(htmlDescription)},
@@ -152,12 +163,12 @@ func main() {
 		},
 	}
 
-	writeChangelog(*release)
+	writeChangelogXml(*release)
+	writeChangelogJson(*release)
 	writeStateFile(newItem.Enclosure.Version)
 }
 
 func getExistingChangelogItems() []item {
-	print("Inspecting Changelog...")
 	xmlFile, err := os.Open(findFileWithExtension(".xml"))
 	if err != nil {
 		fmt.Println(err)
@@ -174,7 +185,7 @@ func getExistingChangelogItems() []item {
 	return items
 }
 
-func writeChangelog(data rss) {
+func writeChangelogXml(data rss) {
 	// Output the marshalled struct
 	file, _ := xml.MarshalIndent(data, "", " ")
 	err := ioutil.WriteFile(fmt.Sprintf("%s/changelog.xml", releaseDirectory), []byte(header+string(file)), 0644)
@@ -183,7 +194,18 @@ func writeChangelog(data rss) {
 		fmt.Println(err)
 	}
 
-	fmt.Println(Green("Changelog successfully written"))
+	fmt.Println(Green("Changelog.xml successfully written"))
+}
+
+func writeChangelogJson(data rss) {
+	file, _ := json.MarshalIndent(data, "", "	")
+	err := ioutil.WriteFile(fmt.Sprintf("%s/changelog.json", releaseDirectory), []byte(string(file)), 0644)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	fmt.Println(Green("Changelog.json successfully written"))
 }
 
 func writeStateFile(version string) {
@@ -200,7 +222,6 @@ func findFileWithExtension(ext string) string {
 	var matchingFilePath string
 	files, err := ioutil.ReadDir(releaseDirectory)
 	if err != nil {
-		println("Reading release directory")
 		fmt.Println(err)
 	}
 
@@ -208,7 +229,6 @@ func findFileWithExtension(ext string) string {
 		extension := filepath.Ext(file.Name())
 		if extension == ext {
 			matchingFilePath = fmt.Sprintf("%s/%s", releaseDirectory, file.Name())
-			println(matchingFilePath)
 		}
 	}
 
