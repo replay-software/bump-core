@@ -132,7 +132,7 @@ func main() {
 			Length:           appFile.Size(),
 			Signature:        signature,
 		},
-		PublishDate:          time.Now().Format("Mon, 01 Jan 2006 15:04:05 +0000"),
+		PublishDate:          time.Now().Format("Mon, 02 Jan 2006 15:04:05 +0000"),
 		Description:          &description{Text: string(htmlDescription)},
 		MinimumSystemVersion: minimumSystemVersion,
 	}
