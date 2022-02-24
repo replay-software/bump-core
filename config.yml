@@ -1,2 +1,3 @@
-app_name: AppExample # Should match the .zip file found in ./release/ (sans extension)
+app_name: Sleeve # Should match the .zip file found in ./release/ (sans extension)
+app_filename: Sleeve.zip
 s3_bucket_name: app-example-distribution # The subdomain used before .s3.amazonaws.com

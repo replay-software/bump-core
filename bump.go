@@ -114,7 +114,7 @@ func main() {
 	}
 
 	var marketingVersion *string
-	if f["marketing_version"] != nil {
+	if f["marketingVersion"] != nil {
 		v := fmt.Sprintf("%s", f["marketingVersion"])
 		marketingVersion = &v
 	}
