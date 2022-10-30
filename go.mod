@@ -1,6 +1,6 @@
 module bump
 
-go 1.15
+go 1.19
 
 require (
 	github.com/cloudflare/circl v1.0.0
@@ -11,3 +11,6 @@ require (
 	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+require internal/edwards v1.0.0
+replace internal/edwards => ./internal/edwards

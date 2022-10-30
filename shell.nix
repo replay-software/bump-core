@@ -3,6 +3,6 @@
 
 pkgs.mkShell {
 	buildInputs = [
-		pkgs.go_1_17
+		pkgs.go_1_19
 	];
 }

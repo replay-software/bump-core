@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package edwards
 
 import (
 	"crypto/sha512"
@@ -3209,7 +3209,7 @@ func ScMinimal(scalar *[32]byte) bool {
 	return true
 }
 
-func sign(privateKey, publicKey, message []byte) []byte {
+func Sign(privateKey, publicKey, message []byte) []byte {
 	var privateKeyA [32]byte
 	copy(privateKeyA[:], privateKey) // we need this in an array later
 	var messageDigest, hramDigest [64]byte
